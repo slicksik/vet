@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { DataProvider } from './context/DataContext';
 import Navbar from './components/layout/Navbar';
+import Footer from './components/layout/Footer';
 import Home from './pages/Home';
 import SearchPage from './pages/Search';
 import VetProfile from './pages/VetProfile';
@@ -32,6 +33,7 @@ function App() {
               <Route path="/subscription" element={<SubscriptionPage />} />
               <Route path="/for-vets" element={<ForVets />} />
             </Routes>
+            <Footer />
           </div>
         </Router>
       </DataProvider>
