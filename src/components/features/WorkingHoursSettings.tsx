@@ -16,12 +16,20 @@ const WorkingHoursSettings: React.FC = () => {
         if (user) {
             const vet = vets.find(v => v.id === user.id);
             if (vet && vet.workingHours) {
-                setHours(vet.workingHours);
+                // Check if we need to update to avoid infinite loop
+                // We use JSON.stringify for a deep comparison of the hours object
+                const currentHoursStr = JSON.stringify(hours);
+                const newHoursStr = JSON.stringify(vet.workingHours);
+
+                if (currentHoursStr !== newHoursStr) {
+                    // eslint-disable-next-line react-hooks/set-state-in-effect
+                    setHours(vet.workingHours);
+                }
             }
         }
-    }, [user, vets]);
+    }, [user, vets, hours]);
 
-    const handleDayChange = (day: keyof WorkingHours, field: keyof DaySchedule, value: any) => {
+    const handleDayChange = (day: keyof WorkingHours, field: keyof DaySchedule, value: boolean | string) => {
         if (!hours) return;
         setHours(prev => {
             if (!prev) return null;

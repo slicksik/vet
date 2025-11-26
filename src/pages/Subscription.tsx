@@ -6,9 +6,15 @@ import { useData } from '../context/DataContext';
 
 const SubscriptionPage: React.FC = () => {
     const { user, isVet } = useAuth();
-    const { updateVetSubscription } = useData();
+    const { updateVetSubscription, vets } = useData(); // Destructure vets here
     const navigate = useNavigate();
     const [isProcessing, setIsProcessing] = useState(false);
+
+    // Get fresh vet data to ensure we have the latest subscription status/expiry
+    // We need to do this safely even if user is null (though we return early below)
+    const currentVet = user ? vets.find(v => v.id === user.id) : undefined;
+    const isSubscribed = currentVet?.isSubscribed ?? (user as import('../types').Vet)?.isSubscribed;
+    const subscriptionExpiry = currentVet?.subscriptionExpiry;
 
     if (!user || !isVet) {
         return (
@@ -17,11 +23,6 @@ const SubscriptionPage: React.FC = () => {
             </div>
         );
     }
-
-    // Get fresh vet data to ensure we have the latest subscription status/expiry
-    const currentVet = useData().vets.find(v => v.id === user.id);
-    const isSubscribed = currentVet?.isSubscribed ?? (user as import('../types').Vet).isSubscribed;
-    const subscriptionExpiry = currentVet?.subscriptionExpiry;
 
     const handleSubscribe = async () => {
         setIsProcessing(true);

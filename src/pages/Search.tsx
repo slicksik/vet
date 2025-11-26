@@ -21,10 +21,14 @@ const SearchPage: React.FC = () => {
         const qParam = searchParams.get('q');
 
         if (latParam && lngParam) {
-            setUserLocation({
-                latitude: parseFloat(latParam),
-                longitude: parseFloat(lngParam)
-            });
+            const newLat = parseFloat(latParam);
+            const newLng = parseFloat(lngParam);
+
+            // Only update if different
+            if (!userLocation || userLocation.latitude !== newLat || userLocation.longitude !== newLng) {
+                // eslint-disable-next-line react-hooks/set-state-in-effect
+                setUserLocation({ latitude: newLat, longitude: newLng });
+            }
         } else if (qParam) {
             // Try to geocode the query
             setIsSearchingLocation(true);
@@ -42,7 +46,7 @@ const SearchPage: React.FC = () => {
                     setIsSearchingLocation(false);
                 });
         }
-    }, [searchParams]);
+    }, [searchParams, userLocation]);
 
     // Filter and sort vets based on search term and user location
     const processedVets = useMemo(() => {

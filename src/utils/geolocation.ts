@@ -48,19 +48,15 @@ export const getCurrentPosition = (): Promise<Coordinates> => {
 };
 
 const getIpLocation = async (): Promise<Coordinates> => {
-    try {
-        const response = await fetch('https://ipapi.co/json/');
-        const data = await response.json();
-        if (data.latitude && data.longitude) {
-            return {
-                latitude: data.latitude,
-                longitude: data.longitude
-            };
-        }
-        throw new Error('Invalid IP location data');
-    } catch (error) {
-        throw error;
+    const response = await fetch('https://ipapi.co/json/');
+    const data = await response.json();
+    if (data.latitude && data.longitude) {
+        return {
+            latitude: data.latitude,
+            longitude: data.longitude
+        };
     }
+    throw new Error('Invalid IP location data');
 };
 
 export const calculateDistance = (

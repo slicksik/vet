@@ -57,26 +57,24 @@ const Home: React.FC = () => {
             />
 
             {/* Hero Section */}
-            <div className="relative bg-white overflow-hidden">
-                <div className="absolute inset-0">
+            <div className="relative bg-white">
+                <div className="absolute inset-0 overflow-hidden">
                     <div className="absolute inset-0 bg-gradient-to-br from-primary-50 to-primary-100 opacity-70" />
                     <div className="absolute right-0 top-0 -mr-20 -mt-20 w-[600px] h-[600px] bg-primary-100 rounded-full blur-3xl opacity-30 animate-pulse" />
                     <div className="absolute left-0 bottom-0 -ml-20 -mb-20 w-[400px] h-[400px] bg-primary-200 rounded-full blur-3xl opacity-30 animate-pulse" style={{ animationDelay: '1s' }} />
                 </div>
 
                 <div className="max-w-7xl mx-auto">
-                    <div className={`relative pb-8 bg-white sm:pb-16 md:pb-20 lg:max-w-2xl lg:w-full lg:pb-28 xl:pb-32 pt-20 px-4 sm:px-6 lg:px-8 transition-all duration-300 ${isSearchFocused ? 'z-50' : 'z-10'}`}>
+                    <div className={`relative pb-8 bg-white sm:pb-16 md:pb-20 lg:max-w-2xl lg:w-full lg:pb-28 xl:pb-32 pt-20 px-4 sm:px-6 lg:px-8 ${isSearchFocused ? '' : 'z-10'}`}>
                         <main className="mt-10 mx-auto max-w-7xl sm:mt-12 md:mt-16 lg:mt-20 xl:mt-28">
                             <div className="sm:text-center lg:text-left animate-fade-in-up relative z-50">
-                                <div className={`transition-opacity duration-300 ${isSearchFocused ? 'opacity-20 blur-sm' : 'opacity-100'}`}>
-                                    <h1 className="text-4xl tracking-tight font-extrabold text-gray-900 sm:text-5xl md:text-6xl mb-6">
-                                        <span className="block xl:inline">Find the best care</span>{' '}
-                                        <span className="block text-transparent bg-clip-text bg-gradient-to-r from-primary-500 to-primary-700 xl:inline">for your best friend</span>
-                                    </h1>
-                                    <p className="mt-3 text-base text-gray-500 sm:mt-5 sm:text-lg sm:max-w-xl sm:mx-auto md:mt-5 md:text-xl lg:mx-0 leading-relaxed">
-                                        Connect with top-rated veterinarians in your area. Book appointments instantly and manage your pet's health with ease.
-                                    </p>
-                                </div>
+                                <h1 className="text-4xl tracking-tight font-extrabold text-gray-900 sm:text-5xl md:text-6xl mb-6">
+                                    <span className="block xl:inline">Find the best care</span>{' '}
+                                    <span className="block text-transparent bg-clip-text bg-gradient-to-r from-primary-500 to-primary-700 xl:inline">for your best friend</span>
+                                </h1>
+                                <p className="mt-3 text-base text-gray-500 sm:mt-5 sm:text-lg sm:max-w-xl sm:mx-auto md:mt-5 md:text-xl lg:mx-0 leading-relaxed">
+                                    Connect with top-rated veterinarians in your area. Book appointments instantly and manage your pet's health with ease.
+                                </p>
 
                                 <div className="mt-8 sm:mt-12 relative">
                                     <form onSubmit={handleSearch} className="relative z-50">
@@ -115,7 +113,7 @@ const Home: React.FC = () => {
                                         </div>
 
                                         {/* Search Suggestions Dropdown */}
-                                        <div className={`absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden transition-all duration-300 origin-top ${isSearchFocused ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'
+                                        <div className={`absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden transition-all duration-300 origin-top max-h-[60vh] overflow-y-auto ${isSearchFocused ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'
                                             }`}>
                                             <div className="p-4">
                                                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Popular Searches</p>
