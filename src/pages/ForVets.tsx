@@ -13,7 +13,7 @@ const ForVets: React.FC = () => {
                     <div className="absolute left-0 bottom-0 -ml-20 -mb-20 w-[400px] h-[400px] bg-primary-200 rounded-full blur-3xl opacity-30 animate-pulse" style={{ animationDelay: '1s' }} />
                 </div>
 
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16 relative z-10">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-24 relative z-10">
                     <div className="lg:grid lg:grid-cols-12 lg:gap-8 items-center">
                         <div className="sm:text-center md:max-w-2xl md:mx-auto lg:col-span-6 lg:text-left animate-fade-in-up">
                             <div className="inline-flex items-center px-3 py-1 rounded-full bg-primary-100 text-primary-800 text-sm font-medium mb-6">
