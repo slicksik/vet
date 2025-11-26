@@ -8,22 +8,26 @@ const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'
 
 const WorkingHoursSettings: React.FC = () => {
     const { user } = useAuth();
-    const { vets, updateVetWorkingHours } = useData();
+    const { vets, updateVetWorkingHours, addVet } = useData();
     const [hours, setHours] = useState<WorkingHours | null>(null);
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
         if (user) {
             const vet = vets.find(v => v.id === user.id);
-            if (vet && vet.workingHours) {
+            // Fallback to user's own working hours if not found in vets list
+            // This handles cases where local storage might be out of sync
+            const sourceOfTruth = vet || (user as import('../../types').Vet);
+
+            if (sourceOfTruth && sourceOfTruth.workingHours) {
                 // Check if we need to update to avoid infinite loop
                 // We use JSON.stringify for a deep comparison of the hours object
                 const currentHoursStr = JSON.stringify(hours);
-                const newHoursStr = JSON.stringify(vet.workingHours);
+                const newHoursStr = JSON.stringify(sourceOfTruth.workingHours);
 
                 if (currentHoursStr !== newHoursStr) {
                     // eslint-disable-next-line react-hooks/set-state-in-effect
-                    setHours(vet.workingHours);
+                    setHours(sourceOfTruth.workingHours);
                 }
             }
         }
@@ -46,9 +50,21 @@ const WorkingHoursSettings: React.FC = () => {
     const handleSave = () => {
         if (!user || !hours) return;
         setIsSaving(true);
+
+        // Check if vet exists in DataContext
+        const vetExists = vets.some(v => v.id === user.id);
+
         // Simulate API delay
         setTimeout(() => {
-            updateVetWorkingHours(user.id, hours);
+            if (!vetExists) {
+                // If vet is missing from DataContext (e.g. cleared storage), add them back
+                // We use the current user object combined with the new working hours
+                const vetToAdd = { ...(user as import('../../types').Vet), workingHours: hours };
+                addVet(vetToAdd);
+            } else {
+                updateVetWorkingHours(user.id, hours);
+            }
+
             setIsSaving(false);
             alert('Working hours updated successfully!');
         }, 800);
