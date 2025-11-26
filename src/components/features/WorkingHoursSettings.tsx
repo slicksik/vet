@@ -20,18 +20,22 @@ const WorkingHoursSettings: React.FC = () => {
             const sourceOfTruth = vet || (user as import('../../types').Vet);
 
             if (sourceOfTruth && sourceOfTruth.workingHours) {
-                // Check if we need to update to avoid infinite loop
-                // We use JSON.stringify for a deep comparison of the hours object
-                const currentHoursStr = JSON.stringify(hours);
-                const newHoursStr = JSON.stringify(sourceOfTruth.workingHours);
+                // Only update if we don't have hours yet, or if the source of truth has changed
+                // We avoid adding 'hours' to the dependency array to prevent overwriting local changes
+                // when the user interacts with the form.
+                setHours(prev => {
+                    const newHoursStr = JSON.stringify(sourceOfTruth.workingHours);
+                    const currentHoursStr = JSON.stringify(prev);
 
-                if (currentHoursStr !== newHoursStr) {
-                    // eslint-disable-next-line react-hooks/set-state-in-effect
-                    setHours(sourceOfTruth.workingHours);
-                }
+                    if (currentHoursStr !== newHoursStr) {
+                        return sourceOfTruth.workingHours;
+                    }
+                    return prev;
+                });
             }
         }
-    }, [user, vets, hours]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user, vets]);
 
     const handleDayChange = (day: keyof WorkingHours, field: keyof DaySchedule, value: boolean | string) => {
         if (!hours) return;
