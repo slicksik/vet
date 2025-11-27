@@ -8,10 +8,21 @@ import BookingModal from '../components/features/BookingModal';
 const VetProfile: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const { vets } = useData();
+    const { vets, loading } = useData();
     const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
 
+    console.log('VetProfile render:', { id, vetsCount: vets.length, loading });
+
     const vet = vets.find(v => v.id === id);
+    console.log('VetProfile found vet:', vet);
+
+    if (loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+            </div>
+        );
+    }
 
     if (!vet) {
         return (

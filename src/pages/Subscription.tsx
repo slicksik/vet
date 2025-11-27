@@ -63,15 +63,25 @@ const SubscriptionPage: React.FC = () => {
                 return_url: window.location.origin + '/subscription',
             });
 
-            onSnapshot(docRef, (snap) => {
+            // Set a timeout to prevent infinite loading
+            const timeoutId = setTimeout(() => {
+                setIsProcessing(false);
+                showToast("Request timed out. Please try again later or contact support.", 'error');
+            }, 15000);
+
+            const unsubscribe = onSnapshot(docRef, (snap) => {
                 const { url, error } = snap.data() || {};
                 if (error) {
+                    clearTimeout(timeoutId);
                     console.error('An error occurred:', error.message);
                     setIsProcessing(false);
                     showToast(`An error occurred: ${error.message}`, 'error');
+                    unsubscribe();
                 }
                 if (url) {
+                    clearTimeout(timeoutId);
                     window.location.assign(url);
+                    unsubscribe();
                 }
             });
         } catch (error) {
@@ -83,7 +93,7 @@ const SubscriptionPage: React.FC = () => {
 
     if (isSubscribed) {
         return (
-            <div className="min-h-screen bg-gray-50 py-20 px-4 sm:px-6 lg:px-8">
+            <div className="min-h-screen bg-gray-50 py-24 px-4 sm:px-6 lg:px-8">
                 <div className="max-w-3xl mx-auto text-center mb-12">
                     <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">
                         Manage Subscription

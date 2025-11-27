@@ -1,58 +1,79 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
-import { collection, onSnapshot, query, where } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { useNavigate } from 'react-router-dom';
 
 import { Calendar, Clock, User, Shield, CheckCircle, XCircle } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import AvailabilityCalendar from '../components/features/AvailabilityCalendar';
 import WorkingHoursSettings from '../components/features/WorkingHoursSettings';
 import VetProfileSettings from '../components/features/VetProfileSettings';
 
 const VetDashboard: React.FC = () => {
-    const { user, isVet } = useAuth();
+    const { user, isVet, loading } = useAuth();
     const { bookings, updateBookingStatus } = useData();
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState<'bookings' | 'schedule' | 'hours' | 'profile'>('bookings');
     const [filter, setFilter] = useState<'all' | 'pending' | 'confirmed'>('all');
 
     React.useEffect(() => {
-        if (!user || !isVet) {
+        if (loading) return;
+
+        if (!user) {
             navigate('/login');
             return;
         }
 
-        // Real-time subscription check using the extension's 'subscriptions' subcollection
-        // The extension creates this subcollection under the customer document
-        const q = query(
-            collection(db, 'customers', user.id, 'subscriptions'),
-            where('status', 'in', ['active', 'trialing'])
+        if (!isVet) {
+            // Don't redirect, let the Access Denied UI show
+            return;
+        }
+
+    }, [user, isVet, loading, navigate]);
+
+    // Subscription check removed to allow unsubscribed access
+
+
+    console.log('VetDashboard render state:', { loading, user, isVet });
+
+    if (loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+            </div>
         );
-
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            // If we have an active subscription
-            const isSubscribed = !snapshot.empty;
-
-            // If not subscribed, redirect to subscription page
-            // BUT we need to be careful not to redirect if we are just loading
-            // or if we are currently on the subscription page (which we are not, this is Dashboard)
-
-            // Ideally, we should update the vet's profile in Firestore if the status changes,
-            // but for now, let's just control access.
-
-            if (!isSubscribed) {
-                // Check if we are already handling a checkout redirect (optional optimization)
-                navigate('/subscription');
-            }
-        });
-
-        return () => unsubscribe();
-    }, [user, isVet, navigate]);
-
+    }
 
     if (!user || !isVet) {
-        return null;
+        console.warn('VetDashboard access denied:', { user, isVet });
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+                <div className="text-center p-8 bg-white rounded-xl shadow-sm border border-gray-200">
+                    <Shield className="w-12 h-12 text-red-500 mx-auto mb-4" />
+                    <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h2>
+                    <p className="text-gray-600 mb-6">You must be logged in as a veterinarian to view this dashboard.</p>
+                    <div className="flex justify-center gap-4">
+                        <button
+                            onClick={() => navigate('/login')}
+                            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+                        >
+                            Log In
+                        </button>
+                        <button
+                            onClick={() => navigate('/')}
+                            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                        >
+                            Go Home
+                        </button>
+                    </div>
+                    <div className="mt-6 text-left bg-gray-50 p-4 rounded-lg text-xs font-mono text-gray-500 overflow-auto max-w-md">
+                        <p>Debug Info:</p>
+                        <p>User ID: {user?.id || 'None'}</p>
+                        <p>Role: {user?.role || 'None'}</p>
+                        <p>Is Vet: {isVet ? 'Yes' : 'No'}</p>
+                    </div>
+                </div>
+            </div>
+        );
     }
 
     const filteredBookings = bookings.filter(b => {

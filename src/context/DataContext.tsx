@@ -18,6 +18,7 @@ interface DataContextType {
     vets: Vet[];
     bookings: Booking[];
     reviews: Review[];
+    loading: boolean;
     addBooking: (booking: Booking) => Promise<void>;
     updateBookingStatus: (bookingId: string, status: Booking['status']) => Promise<void>;
     deleteVet: (vetId: string) => Promise<void>;
@@ -34,12 +35,14 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [vets, setVets] = useState<Vet[]>([]);
     const [bookings, setBookings] = useState<Booking[]>([]);
     const [reviews, setReviews] = useState<Review[]>([]);
+    const [loading, setLoading] = useState(true);
 
     // Real-time listener for Vets
     useEffect(() => {
         const unsubscribe = onSnapshot(collection(db, 'vets'), (snapshot) => {
             const vetsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Vet));
             setVets(vetsData);
+            setLoading(false);
         });
         return () => unsubscribe();
     }, []);
@@ -150,6 +153,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             vets,
             bookings,
             reviews,
+            loading,
             addBooking,
             updateBookingStatus,
             deleteVet,

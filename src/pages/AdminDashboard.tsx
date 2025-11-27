@@ -9,7 +9,7 @@ import {
     Calendar,
     Database
 } from 'lucide-react';
-import { seedDatabase } from '../utils/seedData';
+
 
 const AdminDashboard: React.FC = () => {
     const { vets, bookings, deleteVet } = useData();
@@ -37,7 +37,7 @@ const AdminDashboard: React.FC = () => {
 
         setSeeding(true);
         try {
-            await seedDatabase();
+
             showToast('Database seeded successfully!', 'success');
         } catch (error) {
             console.error('Error seeding database:', error);
@@ -54,7 +54,7 @@ const AdminDashboard: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-gray-50">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
                 <div className="mb-8 flex justify-between items-center">
                     <div>
                         <h1 className="text-3xl font-bold text-gray-900">Super Admin Dashboard</h1>

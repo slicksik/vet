@@ -84,7 +84,7 @@ const SearchPage: React.FC = () => {
     }, [searchTerm, userLocation, vets]);
 
     return (
-        <div className="min-h-screen bg-gray-50 pt-20 pb-10 px-4 sm:px-6 lg:px-8">
+        <div className="min-h-screen bg-gray-50 pt-24 pb-10 px-4 sm:px-6 lg:px-8">
             <div className="max-w-7xl mx-auto">
                 <div className="flex flex-col md:flex-row justify-between items-center mb-8">
                     <h1 className="text-3xl font-bold text-gray-900 mb-4 md:mb-0">
