@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
-import { Save, Loader, Upload, Phone, Globe, MapPin, Building, Stethoscope, FileText, Image as ImageIcon } from 'lucide-react';
+import { getCoordinates } from '../../utils/geocoding';
+import { Camera, Save, MapPin, Globe, Phone, Mail, Clock, Stethoscope, FileText, Image as ImageIcon, Upload, Loader, Building } from 'lucide-react';
 import { storage } from '../../lib/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useToast } from '../../context/ToastContext';
@@ -9,9 +10,9 @@ import { useToast } from '../../context/ToastContext';
 const VetProfileSettings: React.FC = () => {
     const { user } = useAuth();
     const { vets, updateVetProfile } = useData();
-    const { showToast } = useToast(); // Moved this line up
+    const { showToast } = useToast();
     const [isSaving, setIsSaving] = useState(false);
-    const [isUploading, setIsUploading] = useState(false); // Correct variable name
+    const [isUploading, setIsUploading] = useState(false);
 
     // Get current vet data
     const currentVet = vets.find(v => v.id === user?.id);
@@ -20,6 +21,8 @@ const VetProfileSettings: React.FC = () => {
     const [formData, setFormData] = useState({
         clinicName: '',
         address: '',
+        city: '',
+        zipCode: '',
         phone: '',
         website: '',
         description: '',
@@ -33,6 +36,8 @@ const VetProfileSettings: React.FC = () => {
             setFormData({
                 clinicName: currentVet.clinicName || '',
                 address: currentVet.address || '',
+                city: currentVet.city || '',
+                zipCode: currentVet.zipCode || '',
                 phone: currentVet.phone || '',
                 website: currentVet.website || '',
                 description: currentVet.description || '',
@@ -54,17 +59,17 @@ const VetProfileSettings: React.FC = () => {
 
         setIsUploading(true);
         try {
-            const storageRef = ref(storage, `profile-images/${user.id}/${file.name}`); // Changed storage path
+            const storageRef = ref(storage, `profile-images/${user.id}/${file.name}`);
             await uploadBytes(storageRef, file);
             const downloadURL = await getDownloadURL(storageRef);
 
             // Update vet profile with new image URL
             await updateVetProfile(user.id, { image: downloadURL });
             setFormData(prev => ({ ...prev, image: downloadURL })); // Update local state for immediate display
-            showToast('Profile image updated!', 'success'); // Changed alert to showToast
+            showToast('Profile image updated!', 'success');
         } catch (error) {
             console.error("Error uploading image:", error);
-            showToast('Failed to upload image. Please try again.', 'error'); // Changed alert to showToast
+            showToast('Failed to upload image. Please try again.', 'error');
         } finally {
             setIsUploading(false);
         }
@@ -76,18 +81,29 @@ const VetProfileSettings: React.FC = () => {
 
         setIsSaving(true);
         try {
-            // Parse services from comma-separated string
-            const servicesArray = formData.services.split(',').map(s => s.trim()).filter(s => s !== ''); // Adjusted filter condition
+            let lat = currentVet?.latitude || 0;
+            let lng = currentVet?.longitude || 0;
+
+            // Attempt to geocode if address fields are present
+            if (formData.address && formData.city && formData.zipCode) {
+                const coords = await getCoordinates(formData.address, formData.city, formData.zipCode);
+                if (coords) {
+                    lat = coords.lat;
+                    lng = coords.lng;
+                    console.log('Geocoded coordinates:', { lat, lng });
+                }
+            }
 
             await updateVetProfile(user.id, {
                 ...formData,
-                services: servicesArray,
-                image: formData.image, // Ensure image is also sent if it changed locally but not via upload
+                latitude: lat,
+                longitude: lng,
+                services: formData.services.split(',').map(s => s.trim()).filter(s => s)
             });
-            showToast('Profile updated successfully!', 'success'); // Changed alert to showToast
+            showToast('Profile updated successfully', 'success');
         } catch (error) {
-            console.error("Error updating profile:", error);
-            showToast('Failed to update profile.', 'error'); // Changed alert to showToast
+            console.error('Error updating profile:', error);
+            showToast('Failed to update profile', 'error');
         } finally {
             setIsSaving(false);
         }
@@ -170,15 +186,18 @@ const VetProfileSettings: React.FC = () => {
                         </div>
 
                         <div className="sm:col-span-2">
-                            <label htmlFor="services" className="block text-sm font-medium text-gray-700">Services Offered</label>
-                            <div className="mt-1">
+                            <label htmlFor="services" className="block text-sm font-medium text-gray-700">Services</label>
+                            <div className="mt-1 relative rounded-md shadow-sm">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <Stethoscope className="h-4 w-4 text-gray-400" />
+                                </div>
                                 <input
                                     type="text"
                                     name="services"
                                     id="services"
                                     value={formData.services}
                                     onChange={handleChange}
-                                    className="focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-xl py-3"
+                                    className="focus:ring-primary-500 focus:border-primary-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-xl py-3"
                                     placeholder="Vaccination, Surgery, Dental Cleaning (comma separated)"
                                 />
                                 <p className="mt-2 text-xs text-gray-500">Separate multiple services with commas.</p>
@@ -226,6 +245,36 @@ const VetProfileSettings: React.FC = () => {
                                     onChange={handleChange}
                                     className="focus:ring-primary-500 focus:border-primary-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-xl py-3"
                                     placeholder="123 Vet Street, City"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="sm:col-span-1">
+                            <label htmlFor="city" className="block text-sm font-medium text-gray-700">City</label>
+                            <div className="mt-1 relative rounded-md shadow-sm">
+                                <input
+                                    type="text"
+                                    name="city"
+                                    id="city"
+                                    value={formData.city}
+                                    onChange={handleChange}
+                                    className="focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-xl py-3 pl-3"
+                                    placeholder="New York"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="sm:col-span-1">
+                            <label htmlFor="zipCode" className="block text-sm font-medium text-gray-700">ZIP Code</label>
+                            <div className="mt-1 relative rounded-md shadow-sm">
+                                <input
+                                    type="text"
+                                    name="zipCode"
+                                    id="zipCode"
+                                    value={formData.zipCode}
+                                    onChange={handleChange}
+                                    className="focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-xl py-3 pl-3"
+                                    placeholder="10001"
                                 />
                             </div>
                         </div>

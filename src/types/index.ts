@@ -11,6 +11,8 @@ export interface Vet extends User {
     role: 'vet';
     clinicName: string;
     address: string;
+    city?: string;
+    zipCode?: string;
     description: string;
     image: string;
     latitude: number;

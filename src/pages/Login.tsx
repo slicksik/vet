@@ -18,7 +18,7 @@ const Login: React.FC = () => {
         try {
             await login(email, role, password);
             if (role === 'vet') {
-                navigate('/dashboard');
+                navigate('/vet-dashboard');
             } else if (role === 'admin') {
                 navigate('/admin');
             } else {
@@ -39,7 +39,7 @@ const Login: React.FC = () => {
 
             await loginWithGoogle(role);
             if (role === 'vet') {
-                navigate('/dashboard');
+                navigate('/vet-dashboard');
             } else {
                 navigate('/');
             }

@@ -133,7 +133,7 @@ const Navbar: React.FC = () => {
                                             <div className="p-2">
                                                 {user.role === 'vet' && (
                                                     <Link
-                                                        to="/dashboard"
+                                                        to="/vet-dashboard"
                                                         className="flex items-center justify-between px-3 py-2.5 text-sm text-gray-700 rounded-xl hover:bg-primary-50 hover:text-primary-700 transition-colors"
                                                         onClick={() => setIsProfileOpen(false)}
                                                     >
@@ -150,7 +150,7 @@ const Navbar: React.FC = () => {
                                                 )}
 
                                                 <Link
-                                                    to={user.role === 'vet' ? '/dashboard' : '/profile'}
+                                                    to={user.role === 'vet' ? '/vet-dashboard' : '/profile'}
                                                     className="flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 rounded-xl hover:bg-primary-50 hover:text-primary-700 transition-colors"
                                                     onClick={() => setIsProfileOpen(false)}
                                                 >
