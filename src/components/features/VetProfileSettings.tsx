@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
 import { getCoordinates } from '../../utils/geocoding';
-import { Camera, Save, MapPin, Globe, Phone, Mail, Clock, Stethoscope, FileText, Image as ImageIcon, Upload, Loader, Building } from 'lucide-react';
+import { Save, MapPin, Globe, Phone, Stethoscope, FileText, Image as ImageIcon, Upload, Loader, Building } from 'lucide-react';
 import { storage } from '../../lib/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useToast } from '../../context/ToastContext';
