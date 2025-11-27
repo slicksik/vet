@@ -1,155 +1,148 @@
-import React, { createContext, useContext, useState, type ReactNode } from 'react';
-import { MOCK_VETS, MOCK_BOOKINGS } from '../mocks/data';
+import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import {
+    collection,
+    onSnapshot,
+    addDoc,
+    updateDoc,
+    deleteDoc,
+    doc,
+    setDoc,
+    query,
+    where,
+    getDocs
+} from 'firebase/firestore';
+import { db } from '../lib/firebase';
 import type { Vet, Booking, Review, WorkingHours } from '../types';
 
 interface DataContextType {
     vets: Vet[];
     bookings: Booking[];
-    // slots removed
     reviews: Review[];
-    // addSlot removed
-    // removeSlot removed
-    addBooking: (booking: Booking) => void;
-    updateBookingStatus: (bookingId: string, status: Booking['status']) => void;
-    deleteVet: (vetId: string) => void;
-    addReview: (review: Review) => void;
-    updateVetSubscription: (vetId: string, isSubscribed: boolean) => void;
-    updateVetWorkingHours: (vetId: string, workingHours: WorkingHours) => void;
-    addVet: (vet: Vet) => void;
+    addBooking: (booking: Booking) => Promise<void>;
+    updateBookingStatus: (bookingId: string, status: Booking['status']) => Promise<void>;
+    deleteVet: (vetId: string) => Promise<void>;
+    addReview: (review: Review) => Promise<void>;
+    updateVetSubscription: (vetId: string, isSubscribed: boolean) => Promise<void>;
+    updateVetWorkingHours: (vetId: string, workingHours: WorkingHours) => Promise<void>;
+    addVet: (vet: Vet) => Promise<void>;
+    updateVetProfile: (vetId: string, data: Partial<Vet>) => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [vets, setVets] = useState<Vet[]>(() => {
-        const saved = localStorage.getItem('vets');
-        const defaultWorkingHours: WorkingHours = {
-            monday: { isOpen: true, start: '09:00', end: '17:00' },
-            tuesday: { isOpen: true, start: '09:00', end: '17:00' },
-            wednesday: { isOpen: true, start: '09:00', end: '17:00' },
-            thursday: { isOpen: true, start: '09:00', end: '17:00' },
-            friday: { isOpen: true, start: '09:00', end: '17:00' },
-            saturday: { isOpen: false, start: '10:00', end: '14:00' },
-            sunday: { isOpen: false, start: '10:00', end: '14:00' }
-        };
+    const [vets, setVets] = useState<Vet[]>([]);
+    const [bookings, setBookings] = useState<Booking[]>([]);
+    const [reviews, setReviews] = useState<Review[]>([]);
 
-        if (saved) {
-            const parsedVets = JSON.parse(saved);
-            // Migration: Ensure all vets have subscription status AND working hours
-            const updatedVets = parsedVets.map((v: Vet) => ({
-                ...v,
-                isSubscribed: v.isSubscribed ?? true,
-                workingHours: v.workingHours || defaultWorkingHours
-            }));
+    // Real-time listener for Vets
+    useEffect(() => {
+        const unsubscribe = onSnapshot(collection(db, 'vets'), (snapshot) => {
+            const vetsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Vet));
+            setVets(vetsData);
+        });
+        return () => unsubscribe();
+    }, []);
 
-            // Check if we're missing any new mock vets
-            const existingIds = new Set(updatedVets.map((v: Vet) => v.id));
-            const missingMocks = MOCK_VETS.filter(mock => !existingIds.has(mock.id)).map(mock => ({
-                ...mock,
-                workingHours: mock.workingHours || defaultWorkingHours
-            }));
+    // Real-time listener for Bookings
+    useEffect(() => {
+        const unsubscribe = onSnapshot(collection(db, 'bookings'), (snapshot) => {
+            const bookingsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Booking));
+            setBookings(bookingsData);
+        });
+        return () => unsubscribe();
+    }, []);
 
-            return [...updatedVets, ...missingMocks];
+    // Real-time listener for Reviews
+    useEffect(() => {
+        const unsubscribe = onSnapshot(collection(db, 'reviews'), (snapshot) => {
+            const reviewsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Review));
+            setReviews(reviewsData);
+        });
+        return () => unsubscribe();
+    }, []);
+
+    const addBooking = async (booking: Booking) => {
+        // We use setDoc with booking.id if it exists, or addDoc if we want auto-ID.
+        // The mock data had IDs, but for new bookings we usually want auto-IDs or generated IDs.
+        // If booking.id is provided and unique, we can use setDoc.
+        // Let's assume we want to let Firestore generate IDs for new bookings if not provided,
+        // or use the provided ID if it's a specific logic.
+        // However, the types say Booking has an ID.
+        // Let's use setDoc if ID is present, otherwise addDoc (and update local object).
+        // Actually, for simplicity and consistency with 'add' semantics:
+
+        const { id, ...bookingData } = booking;
+        if (id) {
+            await setDoc(doc(db, 'bookings', id), bookingData);
+        } else {
+            await addDoc(collection(db, 'bookings'), bookingData);
         }
-        // Initialize mocks with default hours if not present in mock data
-        return MOCK_VETS.map(v => ({ ...v, workingHours: v.workingHours || defaultWorkingHours }));
-    });
-    const [bookings, setBookings] = useState<Booking[]>(() => {
-        const saved = localStorage.getItem('bookings');
-        const parsedBookings = saved ? JSON.parse(saved) : MOCK_BOOKINGS;
-
-        // Ensure v_demo bookings are present (for demo purposes)
-        const existingIds = new Set(parsedBookings.map((b: Booking) => b.id));
-        const missingMocks = MOCK_BOOKINGS.filter(mock => !existingIds.has(mock.id));
-
-        return [...parsedBookings, ...missingMocks];
-    });
-    // slots state removed as it was unused
-    const [reviews, setReviews] = useState<Review[]>(() => {
-        const saved = localStorage.getItem('reviews');
-        return saved ? JSON.parse(saved) : [];
-    });
-
-    React.useEffect(() => {
-        localStorage.setItem('vets', JSON.stringify(vets));
-    }, [vets]);
-
-    React.useEffect(() => {
-        localStorage.setItem('bookings', JSON.stringify(bookings));
-    }, [bookings]);
-
-    // slots effect removed
-
-    React.useEffect(() => {
-        localStorage.setItem('reviews', JSON.stringify(reviews));
-    }, [reviews]);
-
-    // addSlot and removeSlot removed
-
-    const addBooking = (booking: Booking) => {
-        setBookings(prev => [...prev, booking]);
-        // Slot availability logic removed as slots are dynamic
     };
 
-    const updateBookingStatus = (bookingId: string, status: Booking['status']) => {
-        setBookings(prev => prev.map(b =>
-            b.id === bookingId ? { ...b, status } : b
-        ));
+    const updateBookingStatus = async (bookingId: string, status: Booking['status']) => {
+        await updateDoc(doc(db, 'bookings', bookingId), { status });
     };
 
-    const deleteVet = (vetId: string) => {
-        setVets(prev => prev.filter(v => v.id !== vetId));
+    const deleteVet = async (vetId: string) => {
+        await deleteDoc(doc(db, 'vets', vetId));
     };
 
-    const addReview = (review: Review) => {
-        setReviews(prev => [...prev, review]);
-        // Update vet rating
-        setVets(prev => prev.map(v => {
-            if (v.id === review.vetId) {
-                const vetReviews = reviews.filter(r => r.vetId === v.id);
-                const newReviews = [...vetReviews, review];
-                const totalRating = newReviews.reduce((sum, r) => sum + r.rating, 0);
-                const newRating = Number((totalRating / newReviews.length).toFixed(1));
-                return { ...v, rating: newRating, reviews: newReviews.length };
-            }
-            return v;
-        }));
+    const addReview = async (review: Review) => {
+        const { id, ...reviewData } = review;
+        // 1. Add the new review
+        if (id) {
+            await setDoc(doc(db, 'reviews', id), reviewData);
+        } else {
+            await addDoc(collection(db, 'reviews'), reviewData);
+        }
+
+        // 2. Calculate new rating
+        try {
+            const reviewsRef = collection(db, 'reviews');
+            const q = query(reviewsRef, where('vetId', '==', review.vetId));
+            const querySnapshot = await getDocs(q);
+
+            const reviews = querySnapshot.docs.map(doc => doc.data() as Review);
+            const totalRating = reviews.reduce((sum, r) => sum + r.rating, 0);
+            const averageRating = reviews.length > 0 ? totalRating / reviews.length : 0;
+
+            // Round to 1 decimal place
+            const roundedRating = Math.round(averageRating * 10) / 10;
+
+            // 3. Update vet document
+            await updateDoc(doc(db, 'vets', review.vetId), {
+                rating: roundedRating,
+                reviews: reviews.length
+            });
+        } catch (error) {
+            console.error("Error updating vet rating:", error);
+        }
     };
 
-    const updateVetSubscription = (vetId: string, isSubscribed: boolean) => {
+    const updateVetSubscription = async (vetId: string, isSubscribed: boolean) => {
         const now = new Date();
         const expiryDate = isSubscribed
             ? new Date(now.setDate(now.getDate() + 30)).toISOString()
             : undefined;
 
-        setVets(prev => prev.map(v =>
-            v.id === vetId ? { ...v, isSubscribed, subscriptionExpiry: expiryDate } : v
-        ));
-
-        // Also update local storage user if it matches
-        const currentUserStr = localStorage.getItem('vetify_user');
-        if (currentUserStr) {
-            const currentUser = JSON.parse(currentUserStr);
-            if (currentUser.id === vetId) {
-                const updatedUser = { ...currentUser, isSubscribed, subscriptionExpiry: expiryDate };
-                localStorage.setItem('vetify_user', JSON.stringify(updatedUser));
-                // Note: AuthContext might need a refresh, but for now this persists it
-            }
-        }
-    };
-
-    const updateVetWorkingHours = (vetId: string, workingHours: WorkingHours) => {
-        setVets(prev => prev.map(v =>
-            v.id === vetId ? { ...v, workingHours } : v
-        ));
-    };
-
-    const addVet = (vet: Vet) => {
-        setVets(prev => {
-            // Avoid duplicates
-            if (prev.some(v => v.id === vet.id)) return prev;
-            return [...prev, vet];
+        await updateDoc(doc(db, 'vets', vetId), {
+            isSubscribed,
+            subscriptionExpiry: expiryDate
         });
+    };
+
+    const updateVetWorkingHours = async (vetId: string, workingHours: WorkingHours) => {
+        await updateDoc(doc(db, 'vets', vetId), { workingHours });
+    };
+
+    const addVet = async (vet: Vet) => {
+        const { id, ...vetData } = vet;
+        await setDoc(doc(db, 'vets', id), vetData);
+    };
+
+    const updateVetProfile = async (vetId: string, data: Partial<Vet>) => {
+        await updateDoc(doc(db, 'vets', vetId), data);
     };
 
     return (
@@ -163,7 +156,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             addReview,
             updateVetSubscription,
             updateVetWorkingHours,
-            addVet
+            addVet,
+            updateVetProfile
         }}>
             {children}
         </DataContext.Provider>

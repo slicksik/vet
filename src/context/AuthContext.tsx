@@ -1,11 +1,22 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import {
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
+    signOut,
+    onAuthStateChanged,
+    signInWithPopup,
+    GoogleAuthProvider
+} from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { auth, db } from '../lib/firebase';
 import type { User, Vet } from '../types';
-import { MOCK_VETS } from '../mocks/data';
 
 interface AuthContextType {
     user: User | Vet | null;
-    login: (email: string, role: 'user' | 'vet' | 'admin') => Promise<void>;
-    register: (name: string, email: string, role: 'user' | 'vet') => Promise<User | Vet>;
+    loading: boolean;
+    login: (email: string, role: 'user' | 'vet' | 'admin', password?: string) => Promise<void>;
+    loginWithGoogle: (role?: 'user' | 'vet') => Promise<void>;
+    register: (name: string, email: string, role: 'user' | 'vet', password?: string) => Promise<User | Vet>;
     logout: () => void;
     isAuthenticated: boolean;
     isVet: boolean;
@@ -15,125 +26,172 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [user, setUser] = useState<User | Vet | null>(() => {
-        const storedUser = localStorage.getItem('vetify_user');
-        return storedUser ? JSON.parse(storedUser) : null;
-    });
+    const [user, setUser] = useState<User | Vet | null>(null);
+    const [loading, setLoading] = useState(true);
 
-    const register = async (name: string, email: string, role: 'user' | 'vet'): Promise<User | Vet> => {
-        if (role === 'vet') {
-            const newVet: Vet = {
-                id: 'v_' + Math.random().toString(36).substr(2, 9),
-                name,
-                email,
-                role: 'vet',
-                clinicName: 'New Clinic',
-                address: 'Address Pending',
-                description: 'New veterinarian account.',
-                image: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&q=80&w=800',
-                latitude: 37.7749,
-                longitude: -122.4194,
-                services: ['General Checkup'],
-                rating: 0,
-                reviews: 0,
-                phone: '',
-                isSubscribed: true,
-                workingHours: {
-                    monday: { isOpen: true, start: '09:00', end: '17:00' },
-                    tuesday: { isOpen: true, start: '09:00', end: '17:00' },
-                    wednesday: { isOpen: true, start: '09:00', end: '17:00' },
-                    thursday: { isOpen: true, start: '09:00', end: '17:00' },
-                    friday: { isOpen: true, start: '09:00', end: '17:00' },
-                    saturday: { isOpen: false, start: '09:00', end: '17:00' },
-                    sunday: { isOpen: false, start: '09:00', end: '17:00' }
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+            if (firebaseUser) {
+                // Try to fetch from vets first, then users
+                const vetDoc = await getDoc(doc(db, 'vets', firebaseUser.uid));
+                if (vetDoc.exists()) {
+                    setUser(vetDoc.data() as Vet);
+                } else {
+                    const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+                    if (userDoc.exists()) {
+                        setUser(userDoc.data() as User);
+                    } else {
+                        // User authenticated but no profile found (shouldn't happen in normal flow)
+                        console.error('User authenticated but no profile found');
+                        setUser(null);
+                    }
                 }
-            };
-            setUser(newVet);
-            localStorage.setItem('vetify_user', JSON.stringify(newVet));
-            return newVet;
-        } else {
-            const newUser: User = {
-                id: 'u_' + Math.random().toString(36).substr(2, 9),
-                name,
-                email,
-                role: 'user'
-            };
-            setUser(newUser);
-            localStorage.setItem('vetify_user', JSON.stringify(newUser));
+            } else {
+                setUser(null);
+            }
+            setLoading(false);
+        });
+
+        return () => unsubscribe();
+    }, []);
+
+    const register = async (name: string, email: string, role: 'user' | 'vet', password?: string): Promise<User | Vet> => {
+        try {
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password || 'password123');
+            const firebaseUser = userCredential.user;
+
+            const newUser: User | Vet = role === 'vet'
+                ? {
+                    id: firebaseUser.uid,
+                    name,
+                    email,
+                    role: 'vet',
+                    clinicName: 'New Clinic',
+                    address: 'Address Pending',
+                    description: 'Description Pending',
+                    image: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&q=80&w=300&h=300',
+                    latitude: 40.7128,
+                    longitude: -74.0060,
+                    services: ['General Checkup'],
+                    rating: 0,
+                    reviews: 0,
+                    phone: 'Phone Pending',
+                    isSubscribed: false,
+                    workingHours: {
+                        monday: { isOpen: true, start: "09:00", end: "17:00" },
+                        tuesday: { isOpen: true, start: "09:00", end: "17:00" },
+                        wednesday: { isOpen: true, start: "09:00", end: "17:00" },
+                        thursday: { isOpen: true, start: "09:00", end: "17:00" },
+                        friday: { isOpen: true, start: "09:00", end: "17:00" },
+                        saturday: { isOpen: false, start: "09:00", end: "17:00" },
+                        sunday: { isOpen: false, start: "09:00", end: "17:00" }
+                    }
+                }
+                : {
+                    id: firebaseUser.uid,
+                    name,
+                    email,
+                    role: 'user'
+                };
+
+            const collectionName = role === 'vet' ? 'vets' : 'users';
+            await setDoc(doc(db, collectionName, firebaseUser.uid), newUser);
+
+            // No need to setUser here as onAuthStateChanged will trigger
             return newUser;
+        } catch (error) {
+            console.error('Registration error:', error);
+            throw error;
         }
     };
 
-    const login = async (email: string, role: 'user' | 'vet' | 'admin') => {
-        // Mock login logic
-        if (role === 'admin') {
-            const adminUser: User = {
-                id: 'admin_1',
-                name: 'Super Admin',
-                email: email,
-                role: 'admin'
-            };
-            setUser(adminUser);
-            localStorage.setItem('vetify_user', JSON.stringify(adminUser));
-        } else if (role === 'vet') {
-            const vet = MOCK_VETS.find(v => v.email === email);
-            if (vet) {
-                setUser(vet);
-                localStorage.setItem('vetify_user', JSON.stringify(vet));
-            } else {
-                // Create a mock vet if not found in predefined list (for demo purposes)
-                const newVet: Vet = {
-                    id: 'v_demo',
-                    name: 'Demo Vet',
-                    email,
-                    role: 'vet',
-                    clinicName: 'Demo Clinic',
-                    address: '123 Demo St',
-                    description: 'This is a demo vet account.',
-                    image: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&q=80&w=800',
-                    latitude: 37.7749,
-                    longitude: -122.4194,
-                    services: ['General Checkup'],
-                    rating: 5.0,
-                    reviews: 0,
-                    phone: '(555) 000-0000',
-                    isSubscribed: true,
-                    workingHours: {
-                        monday: { isOpen: true, start: '09:00', end: '17:00' },
-                        tuesday: { isOpen: true, start: '09:00', end: '17:00' },
-                        wednesday: { isOpen: true, start: '09:00', end: '17:00' },
-                        thursday: { isOpen: true, start: '09:00', end: '17:00' },
-                        friday: { isOpen: true, start: '09:00', end: '17:00' },
-                        saturday: { isOpen: false, start: '09:00', end: '17:00' },
-                        sunday: { isOpen: false, start: '09:00', end: '17:00' }
+    const login = async (email: string, _role: 'user' | 'vet' | 'admin', password?: string) => {
+        try {
+            await signInWithEmailAndPassword(auth, email, password || 'password123');
+            // onAuthStateChanged will handle the rest
+        } catch (error) {
+            console.error('Login error:', error);
+            throw error;
+        }
+    };
+
+    const loginWithGoogle = async (role: 'user' | 'vet' = 'user') => {
+        try {
+            const provider = new GoogleAuthProvider();
+            const result = await signInWithPopup(auth, provider);
+            const firebaseUser = result.user;
+
+            // Check if user exists in either collection
+            const vetDoc = await getDoc(doc(db, 'vets', firebaseUser.uid));
+            const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+
+            if (!vetDoc.exists() && !userDoc.exists()) {
+                // New user, create profile
+                const newUser: User | Vet = role === 'vet'
+                    ? {
+                        id: firebaseUser.uid,
+                        name: firebaseUser.displayName || 'Vet',
+                        email: firebaseUser.email || '',
+                        role: 'vet',
+                        clinicName: 'New Clinic',
+                        address: 'Address Pending',
+                        description: 'Description Pending',
+                        image: firebaseUser.photoURL || 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&q=80&w=300&h=300',
+                        latitude: 40.7128,
+                        longitude: -74.0060,
+                        services: ['General Checkup'],
+                        rating: 0,
+                        reviews: 0,
+                        phone: 'Phone Pending',
+                        isSubscribed: false,
+                        workingHours: {
+                            monday: { isOpen: true, start: "09:00", end: "17:00" },
+                            tuesday: { isOpen: true, start: "09:00", end: "17:00" },
+                            wednesday: { isOpen: true, start: "09:00", end: "17:00" },
+                            thursday: { isOpen: true, start: "09:00", end: "17:00" },
+                            friday: { isOpen: true, start: "09:00", end: "17:00" },
+                            saturday: { isOpen: false, start: "09:00", end: "17:00" },
+                            sunday: { isOpen: false, start: "09:00", end: "17:00" }
+                        }
                     }
-                };
-                setUser(newVet);
-                localStorage.setItem('vetify_user', JSON.stringify(newVet));
+                    : {
+                        id: firebaseUser.uid,
+                        name: firebaseUser.displayName || 'User',
+                        email: firebaseUser.email || '',
+                        role: 'user'
+                    };
+
+                const collectionName = role === 'vet' ? 'vets' : 'users';
+                await setDoc(doc(db, collectionName, firebaseUser.uid), newUser);
+
+                // Manually set user state to avoid race condition with onAuthStateChanged
+                // which might run before the Firestore document is created
+                setUser(newUser);
+            } else {
+                // User exists, ensure state is updated (though onAuthStateChanged handles this too)
+                if (vetDoc.exists()) {
+                    setUser(vetDoc.data() as Vet);
+                } else if (userDoc.exists()) {
+                    setUser(userDoc.data() as User);
+                }
             }
-        } else {
-            // Check if it's the demo user from mock data
-            const isDemoUser = email === 'john@example.com';
-            const newUser: User = {
-                id: isDemoUser ? 'u1' : 'u_' + Math.random().toString(36).substr(2, 9),
-                name: isDemoUser ? 'John Doe' : email.split('@')[0],
-                email,
-                role: 'user'
-            };
-            setUser(newUser);
-            localStorage.setItem('vetify_user', JSON.stringify(newUser));
+        } catch (error) {
+            console.error('Google login error:', error);
+            throw error;
         }
     };
 
     const logout = () => {
-        setUser(null);
-        localStorage.removeItem('vetify_user');
+        signOut(auth);
+        localStorage.removeItem('vetify_user'); // Clean up legacy
     };
 
     return (
         <AuthContext.Provider value={{
             user,
+            loading,
             login,
+            loginWithGoogle,
             register,
             logout,
             isAuthenticated: !!user,

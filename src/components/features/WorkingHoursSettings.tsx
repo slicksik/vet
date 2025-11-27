@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, Save } from 'lucide-react';
-import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
+import { useData } from '../../context/DataContext';
+import { useToast } from '../../context/ToastContext';
 import type { WorkingHours, DaySchedule } from '../../types';
 
 const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
@@ -9,6 +10,7 @@ const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'
 const WorkingHoursSettings: React.FC = () => {
     const { user } = useAuth();
     const { vets, updateVetWorkingHours, addVet } = useData();
+    const { showToast } = useToast();
     const [hours, setHours] = useState<WorkingHours | null>(null);
     const [isSaving, setIsSaving] = useState(false);
 
@@ -34,7 +36,6 @@ const WorkingHoursSettings: React.FC = () => {
                 });
             }
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user, vets]);
 
     const handleDayChange = (day: keyof WorkingHours, field: keyof DaySchedule, value: boolean | string) => {
@@ -51,27 +52,32 @@ const WorkingHoursSettings: React.FC = () => {
         });
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!user || !hours) return;
         setIsSaving(true);
 
         // Check if vet exists in DataContext
         const vetExists = vets.some(v => v.id === user.id);
+        try {
+            // Simulate API delay or actual async operation
+            await new Promise(resolve => setTimeout(resolve, 800)); // Simulate network delay
 
-        // Simulate API delay
-        setTimeout(() => {
             if (!vetExists) {
                 // If vet is missing from DataContext (e.g. cleared storage), add them back
                 // We use the current user object combined with the new working hours
                 const vetToAdd = { ...(user as import('../../types').Vet), workingHours: hours };
-                addVet(vetToAdd);
+                await addVet(vetToAdd);
             } else {
-                updateVetWorkingHours(user.id, hours);
+                await updateVetWorkingHours(user.id, hours);
             }
 
+            showToast('Working hours updated successfully!', 'success');
+        } catch (error) {
+            console.error("Error updating working hours:", error);
+            showToast('Failed to update working hours.', 'error');
+        } finally {
             setIsSaving(false);
-            alert('Working hours updated successfully!');
-        }, 800);
+        }
     };
 
     if (!hours) return <div>Loading...</div>;

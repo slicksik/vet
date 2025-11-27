@@ -1,28 +1,49 @@
 import React, { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
-import { Users, Stethoscope, Calendar, Trash2, Search } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useToast } from '../context/ToastContext';
+import {
+    Users,
+    Stethoscope,
+    Search,
+    Trash2,
+    Calendar,
+    Database
+} from 'lucide-react';
+import { seedDatabase } from '../utils/seedData';
 
 const AdminDashboard: React.FC = () => {
-    const { user, isAdmin } = useAuth();
     const { vets, bookings, deleteVet } = useData();
-    const navigate = useNavigate();
+    const { showToast } = useToast();
+
     const [searchTerm, setSearchTerm] = useState('');
+    const [seeding, setSeeding] = useState(false);
 
-    React.useEffect(() => {
-        if (!user || !isAdmin) {
-            navigate('/login');
+
+
+    const handleDeleteVet = async (vetId: string) => {
+        if (window.confirm('Are you sure you want to delete this veterinarian? This action cannot be undone.')) {
+            try {
+                await deleteVet(vetId);
+                showToast('Veterinarian deleted successfully', 'success');
+            } catch (error) {
+                console.error('Error deleting vet:', error);
+                showToast('Failed to delete veterinarian', 'error');
+            }
         }
-    }, [user, isAdmin, navigate]);
+    };
 
-    if (!user || !isAdmin) {
-        return null;
-    }
+    const handleSeedData = async () => {
+        if (!window.confirm('This will overwrite existing data with mock data. Continue?')) return;
 
-    const handleDeleteVet = (vetId: string) => {
-        if (window.confirm('Are you sure you want to delete this vet?')) {
-            deleteVet(vetId);
+        setSeeding(true);
+        try {
+            await seedDatabase();
+            showToast('Database seeded successfully!', 'success');
+        } catch (error) {
+            console.error('Error seeding database:', error);
+            showToast('Failed to seed database.', 'error');
+        } finally {
+            setSeeding(false);
         }
     };
 
@@ -34,9 +55,19 @@ const AdminDashboard: React.FC = () => {
     return (
         <div className="min-h-screen bg-gray-50">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-                <div className="mb-8">
-                    <h1 className="text-3xl font-bold text-gray-900">Super Admin Dashboard</h1>
-                    <p className="text-gray-500 mt-2">Platform Overview & Management</p>
+                <div className="mb-8 flex justify-between items-center">
+                    <div>
+                        <h1 className="text-3xl font-bold text-gray-900">Super Admin Dashboard</h1>
+                        <p className="text-gray-500 mt-2">Platform Overview & Management</p>
+                    </div>
+                    <button
+                        onClick={handleSeedData}
+                        disabled={seeding}
+                        className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
+                    >
+                        <Database className="w-4 h-4 mr-2" />
+                        {seeding ? 'Seeding...' : 'Seed Database'}
+                    </button>
                 </div>
 
                 {/* Stats Overview */}
@@ -118,18 +149,20 @@ const AdminDashboard: React.FC = () => {
                                         <tr key={vet.id}>
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <div className="flex items-center">
-                                                    <div className="flex-shrink-0 h-10 w-10">
-                                                        <img className="h-10 w-10 rounded-full object-cover" src={vet.image} alt="" />
+                                                    <div className="h-10 w-10 flex-shrink-0">
+                                                        <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center">
+                                                            {vet.image ? (
+                                                                <img className="h-10 w-10 rounded-full object-cover" src={vet.image} alt="" />
+                                                            ) : (
+                                                                <Stethoscope className="h-6 w-6 text-gray-500" />
+                                                            )}
+                                                        </div>
                                                     </div>
                                                     <div className="ml-4">
                                                         <div className="text-sm font-medium text-gray-900">{vet.name}</div>
-                                                        <div className="text-sm text-gray-500">{vet.clinicName}</div>
+                                                        <div className="text-sm text-gray-500">{vet.email}</div>
                                                     </div>
                                                 </div>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="text-sm text-gray-900 max-w-xs truncate">{vet.address}</div>
-                                                <div className="text-sm text-gray-500">{vet.phone}</div>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
@@ -165,11 +198,11 @@ const AdminDashboard: React.FC = () => {
                                     return (
                                         <div key={booking.id} className="p-4 bg-gray-50 rounded-xl border border-gray-100 hover:bg-gray-100 transition-colors">
                                             <div className="flex justify-between items-start mb-2">
-                                                <span className={`px-2 py-1 rounded-md text-xs font-medium capitalize
+                                                <span className={`px - 2 py - 1 rounded - md text - xs font - medium capitalize
                                                     ${booking.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : ''}
                                                     ${booking.status === 'confirmed' ? 'bg-green-100 text-green-800' : ''}
                                                     ${booking.status === 'rejected' ? 'bg-red-100 text-red-800' : ''}
-                                                `}>
+`}>
                                                     {booking.status}
                                                 </span>
                                                 <span className="text-xs text-gray-400">

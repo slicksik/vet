@@ -1,17 +1,20 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 
 import { Calendar, Clock, User, Shield, CheckCircle, XCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import AvailabilityCalendar from '../components/features/AvailabilityCalendar';
 import WorkingHoursSettings from '../components/features/WorkingHoursSettings';
+import VetProfileSettings from '../components/features/VetProfileSettings';
 
 const VetDashboard: React.FC = () => {
     const { user, isVet } = useAuth();
     const { bookings, updateBookingStatus } = useData();
     const navigate = useNavigate();
-    const [activeTab, setActiveTab] = useState<'bookings' | 'schedule' | 'hours'>('bookings');
+    const [activeTab, setActiveTab] = useState<'bookings' | 'schedule' | 'hours' | 'profile'>('bookings');
     const [filter, setFilter] = useState<'all' | 'pending' | 'confirmed'>('all');
 
     React.useEffect(() => {
@@ -20,13 +23,33 @@ const VetDashboard: React.FC = () => {
             return;
         }
 
-        // Check subscription status
-        // Note: We cast user to Vet because isVet is true
-        const vetUser = user as import('../types').Vet;
-        if (vetUser.isSubscribed === false) {
-            navigate('/subscription');
-        }
+        // Real-time subscription check using the extension's 'subscriptions' subcollection
+        // The extension creates this subcollection under the customer document
+        const q = query(
+            collection(db, 'customers', user.id, 'subscriptions'),
+            where('status', 'in', ['active', 'trialing'])
+        );
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            // If we have an active subscription
+            const isSubscribed = !snapshot.empty;
+
+            // If not subscribed, redirect to subscription page
+            // BUT we need to be careful not to redirect if we are just loading
+            // or if we are currently on the subscription page (which we are not, this is Dashboard)
+
+            // Ideally, we should update the vet's profile in Firestore if the status changes,
+            // but for now, let's just control access.
+
+            if (!isSubscribed) {
+                // Check if we are already handling a checkout redirect (optional optimization)
+                navigate('/subscription');
+            }
+        });
+
+        return () => unsubscribe();
     }, [user, isVet, navigate]);
+
 
     if (!user || !isVet) {
         return null;
@@ -127,6 +150,16 @@ const VetDashboard: React.FC = () => {
                         >
                             <Clock className="w-5 h-5 mr-2" />
                             Working Hours
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('profile')}
+                            className={`${activeTab === 'profile'
+                                ? 'border-primary-500 text-primary-600'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center`}
+                        >
+                            <User className="w-5 h-5 mr-2" />
+                            Profile
                         </button>
                     </nav>
                 </div>
@@ -235,6 +268,12 @@ const VetDashboard: React.FC = () => {
                 {activeTab === 'hours' && (
                     <div className="space-y-6">
                         <WorkingHoursSettings />
+                    </div>
+                )}
+
+                {activeTab === 'profile' && (
+                    <div className="space-y-6">
+                        <VetProfileSettings />
                     </div>
                 )}
             </div>

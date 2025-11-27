@@ -1,17 +1,18 @@
 import React, { useState } from 'react';
-import { Check, CreditCard, Shield } from 'lucide-react';
+import { Check, CreditCard, Shield, ExternalLink } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
+import { addDoc, collection, onSnapshot } from 'firebase/firestore';
+import { db } from '../lib/firebase';
+import { useToast } from '../context/ToastContext';
 
 const SubscriptionPage: React.FC = () => {
     const { user, isVet } = useAuth();
-    const { updateVetSubscription, vets } = useData(); // Destructure vets here
-    const navigate = useNavigate();
+    const { vets } = useData();
+    const { showToast } = useToast();
     const [isProcessing, setIsProcessing] = useState(false);
 
     // Get fresh vet data to ensure we have the latest subscription status/expiry
-    // We need to do this safely even if user is null (though we return early below)
     const currentVet = user ? vets.find(v => v.id === user.id) : undefined;
     const isSubscribed = currentVet?.isSubscribed ?? (user as import('../types').Vet)?.isSubscribed;
     const subscriptionExpiry = currentVet?.subscriptionExpiry;
@@ -26,24 +27,57 @@ const SubscriptionPage: React.FC = () => {
 
     const handleSubscribe = async () => {
         setIsProcessing(true);
+        try {
+            // Create a checkout session document in Firestore
+            const docRef = await addDoc(collection(db, 'customers', user.id, 'checkout_sessions'), {
+                price: 'price_1SXsVIRvN8UpGVqzTADMR1RC', // Real Price ID
+                success_url: window.location.origin + '/vet-dashboard',
+                cancel_url: window.location.origin + '/subscription',
+            });
 
-        // Simulate API call
-        setTimeout(() => {
-            updateVetSubscription(user.id, true);
+            // Listen for the session to be created and get the URL
+            onSnapshot(docRef, (snap) => {
+                const { url, error } = snap.data() || {};
+                if (error) {
+                    console.error('An error occurred:', error.message);
+                    setIsProcessing(false);
+                    showToast(`An error occurred: ${error.message}`, 'error');
+                }
+                if (url) {
+                    window.location.assign(url);
+                }
+            });
+        } catch (error) {
+            console.error("Error creating checkout session:", error);
             setIsProcessing(false);
-            alert('Subscription successful! Welcome to Vetify Premium.');
-            navigate('/dashboard');
-        }, 2000);
+            showToast("Failed to start checkout. Please try again.", 'error');
+        }
     };
 
-    const handleCancel = async () => {
-        if (window.confirm('Are you sure you want to cancel your subscription? You will lose access to premium features immediately.')) {
-            setIsProcessing(true);
-            setTimeout(() => {
-                updateVetSubscription(user.id, false);
-                setIsProcessing(false);
-                alert('Subscription cancelled.');
-            }, 1000);
+    const handleManageSubscription = async () => {
+        setIsProcessing(true);
+        try {
+            // Create a portal session document in Firestore
+            // The extension listens to this collection and creates a Stripe Portal Session
+            const docRef = await addDoc(collection(db, 'customers', user.id, 'customer_portal_sessions'), {
+                return_url: window.location.origin + '/subscription',
+            });
+
+            onSnapshot(docRef, (snap) => {
+                const { url, error } = snap.data() || {};
+                if (error) {
+                    console.error('An error occurred:', error.message);
+                    setIsProcessing(false);
+                    showToast(`An error occurred: ${error.message}`, 'error');
+                }
+                if (url) {
+                    window.location.assign(url);
+                }
+            });
+        } catch (error) {
+            console.error("Error creating portal session:", error);
+            setIsProcessing(false);
+            showToast("Failed to open subscription management. Please try again.", 'error');
         }
     };
 
@@ -75,12 +109,12 @@ const SubscriptionPage: React.FC = () => {
                             <dl className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
                                 <div>
                                     <dt className="text-sm font-medium text-gray-500">Price</dt>
-                                    <dd className="mt-1 text-lg font-semibold text-gray-900">€9/mo</dd>
+                                    <dd className="mt-1 text-lg font-semibold text-gray-900">€19/mo</dd>
                                 </div>
                                 <div>
                                     <dt className="text-sm font-medium text-gray-500">Next Billing Date</dt>
                                     <dd className="mt-1 text-lg font-semibold text-gray-900">
-                                        {subscriptionExpiry ? new Date(subscriptionExpiry).toLocaleDateString() : 'N/A'}
+                                        {subscriptionExpiry ? new Date(subscriptionExpiry).toLocaleDateString() : 'Auto-renewing'}
                                     </dd>
                                 </div>
                             </dl>
@@ -88,15 +122,19 @@ const SubscriptionPage: React.FC = () => {
 
                         <div className="mt-8">
                             <button
-                                onClick={handleCancel}
+                                onClick={handleManageSubscription}
                                 disabled={isProcessing}
-                                className={`w-full flex items-center justify-center px-6 py-3 border border-gray-300 rounded-xl shadow-sm text-base font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-all ${isProcessing ? 'opacity-75 cursor-not-allowed' : ''
+                                className={`w-full flex items-center justify-center px-6 py-3 border border-gray-300 rounded-xl shadow-sm text-base font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-all ${isProcessing ? 'opacity-75 cursor-not-allowed' : ''
                                     }`}
                             >
-                                {isProcessing ? 'Processing...' : 'Cancel Subscription'}
+                                {isProcessing ? 'Processing...' : (
+                                    <>
+                                        Manage Subscription <ExternalLink className="ml-2 h-4 w-4" />
+                                    </>
+                                )}
                             </button>
                             <p className="mt-4 text-xs text-center text-gray-400">
-                                Cancellation will be effective immediately.
+                                You will be redirected to Stripe to manage your billing and cancellation.
                             </p>
                         </div>
                     </div>
@@ -124,7 +162,7 @@ const SubscriptionPage: React.FC = () => {
                         </span>
                     </div>
                     <div className="mt-4 flex justify-center items-baseline text-6xl font-extrabold text-gray-900">
-                        €9
+                        €19
                         <span className="ml-1 text-2xl font-medium text-gray-500">/mo</span>
                     </div>
                     <p className="mt-5 text-lg text-gray-500 text-center">
@@ -166,7 +204,7 @@ const SubscriptionPage: React.FC = () => {
                         </button>
                         <p className="mt-4 text-xs text-center text-gray-400 flex items-center justify-center">
                             <Shield className="w-3 h-3 mr-1" />
-                            Secure payment processing via Stripe (Coming Soon)
+                            Secure payment processing via Stripe
                         </p>
                     </div>
                 </div>
