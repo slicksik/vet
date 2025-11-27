@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 import { Calendar, Clock, User, Shield, CheckCircle, XCircle } from 'lucide-react';
 import AvailabilityCalendar from '../components/features/AvailabilityCalendar';
@@ -12,8 +12,18 @@ const VetDashboard: React.FC = () => {
     const { user, isVet, loading } = useAuth();
     const { bookings, updateBookingStatus } = useData();
     const navigate = useNavigate();
+    const location = useLocation();
     const [activeTab, setActiveTab] = useState<'bookings' | 'schedule' | 'hours' | 'profile'>('bookings');
     const [filter, setFilter] = useState<'all' | 'pending' | 'confirmed'>('all');
+
+    // Handle tab deep linking
+    React.useEffect(() => {
+        const searchParams = new URLSearchParams(location.search);
+        const tabParam = searchParams.get('tab');
+        if (tabParam && ['bookings', 'schedule', 'hours', 'profile'].includes(tabParam)) {
+            setActiveTab(tabParam as any);
+        }
+    }, [location.search]);
 
     React.useEffect(() => {
         if (loading) return;

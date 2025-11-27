@@ -150,7 +150,7 @@ const Navbar: React.FC = () => {
                                                 )}
 
                                                 <Link
-                                                    to={user.role === 'vet' ? '/vet-dashboard' : '/profile'}
+                                                    to={user.role === 'vet' ? '/vet-dashboard?tab=profile' : '/profile'}
                                                     className="flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 rounded-xl hover:bg-primary-50 hover:text-primary-700 transition-colors"
                                                     onClick={() => setIsProfileOpen(false)}
                                                 >

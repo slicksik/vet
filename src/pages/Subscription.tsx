@@ -54,41 +54,8 @@ const SubscriptionPage: React.FC = () => {
         }
     };
 
-    const handleManageSubscription = async () => {
-        setIsProcessing(true);
-        try {
-            // Create a portal session document in Firestore
-            // The extension listens to this collection and creates a Stripe Portal Session
-            const docRef = await addDoc(collection(db, 'customers', user.id, 'customer_portal_sessions'), {
-                return_url: window.location.origin + '/subscription',
-            });
-
-            // Set a timeout to prevent infinite loading
-            const timeoutId = setTimeout(() => {
-                setIsProcessing(false);
-                showToast("Request timed out. Please try again later or contact support.", 'error');
-            }, 15000);
-
-            const unsubscribe = onSnapshot(docRef, (snap) => {
-                const { url, error } = snap.data() || {};
-                if (error) {
-                    clearTimeout(timeoutId);
-                    console.error('An error occurred:', error.message);
-                    setIsProcessing(false);
-                    showToast(`An error occurred: ${error.message}`, 'error');
-                    unsubscribe();
-                }
-                if (url) {
-                    clearTimeout(timeoutId);
-                    window.location.assign(url);
-                    unsubscribe();
-                }
-            });
-        } catch (error) {
-            console.error("Error creating portal session:", error);
-            setIsProcessing(false);
-            showToast("Failed to open subscription management. Please try again.", 'error');
-        }
+    const handleManageSubscription = () => {
+        window.location.href = 'https://billing.stripe.com/p/login/test_8x2aEZeB84It0a2g7e1gs00';
     };
 
     if (isSubscribed) {
